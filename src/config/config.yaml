@@ -1,0 +1,94 @@
+# src/config/config.yaml
+# Centralized configuration for the Compliance RAG Chatbot
+# All URLs, keywords, paths, LLM settings, and direct PDFs are here for easy maintenance
+
+# Scraping URLs (for live scraping – flaky gov sites, but kept for freshness)
+sebi_url: "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=1&ssid=3&smid=15"  # SEBI circulars list
+cpcb_urls:
+  - url: "https://cpcb.nic.in/clarification-regarding-epr-authorization/"
+  - url: "https://cpcb.nic.in/extended-producer-responsibility/"
+ccts_urls:
+  - url: "https://beeindia.gov.in/en/programmes/carbon-market"
+  - url: "https://beeindia.gov.in/sites/default/files/Seeking_stakeholder_comments_on_Provisionally_eligible_Accredited_Carbon_Verification_Agency_under_CCTS-Round2.pdf"
+
+# Relevance keywords for AI filtering (add more as needed)
+relevance_keywords:
+  - BRSR
+  - sustainability
+  - ESG
+  - EPR
+  - "extended producer responsibility"
+  - "plastic waste"
+  - "carbon credit"
+  - CCTS
+  - emissions
+  - "green credit"
+  - assurance
+  - "value chain"
+
+# LLM settings (Gemini)
+llm_model: "gemini-1.5-flash"  # Fast, free-tier friendly
+temperature: 0.2  # Low for factual responses
+
+# Vector DB (Qdrant local for dev)
+qdrant_host: "localhost"
+qdrant_port: 6333
+collection_name: "compliance_docs"
+
+# Data paths
+raw_data_path: "data/raw/"
+processed_data_path: "data/processed/"
+
+# Direct PDFs: Key historical/latest documents (reliable – downloads even if live sites fail)
+# Sources verified from official sites (SEBI, CPCB, BEE) as of Dec 29, 2025
+direct_pdfs:
+  sebi_brsr:
+    - name: "Measures to Facilitate Ease of Doing Business - BRSR Value Chain Voluntary (March 28, 2025)"
+      url: "https://www.sebi.gov.in/legal/circulars/mar-2025/measures-to-facilitate-ease-of-doing-business-with-respect-to-framework-for-assurance-or-assessment-esg-disclosures-for-value-chain-and-introduction-of-voluntary-disclosure-on-green-credits_93102.html"  # HTML page; scraper can parse for PDF if needed
+    - name: "BRSR Core Framework for Assurance and Value Chain (July 2023 - foundational)"
+      url: "https://www.sebi.gov.in/legal/circulars/jul-2023/brsr-core-framework-for-assurance-and-esg-disclosures-for-value-chain_73854.html"
+
+  cpcb_epr:
+    - name: "EPR Electronic Trading Platform Guidelines"
+      url: "https://cpcb.nic.in/openpdffile.php?id=TGF0ZXN0RmlsZS80MzBfMTczNTYzNzY5Nl9tZWRpYXBob3RvMTM5ODcucGRm"
+    - name: "Guidelines for Environmental Compensation Regime PWM"
+      url: "https://cpcb.nic.in/uploads/plasticwaste/EC_Regime_PWM.pdf"
+    - name: "EPR Battery Waste Portal Notice"
+      url: "https://cpcb.nic.in/openpdffile.php?id=UmVwb3J0RmlsZXMvMTUxMF8xNjc5MzkzMzc1X21lZGlhcGhvdG8yNDc1OC5wZGY="
+
+  ccts:
+    - name: "Compliance Procedure under CCTS (2024 - key operational doc)"
+      url: "https://beeindia.gov.in/sites/default/files/Detailed%20Procedure%20for%20Compliance%20Procedure%20under%20CCTS.pdf"
+    - name: "Offset Mechanism Detailed Procedure"
+      url: "https://beeindia.gov.in/sites/default/files/Detailed%20Procedure%20for%20Offset%20Mechanism_CCTS.pdf"
+    - name: "Provisionally Eligible ACV Agencies Round 2 (Oct 2025)"
+      url: "https://beeindia.gov.in/sites/default/files/Seeking_stakeholder_comments_on_Provisionally_eligible_Accredited_Carbon_Verification_Agency_under_CCTS-Round2.pdf"
+    - name: "Main CCTS Scheme Notification PDF"
+      url: "https://beeindia.gov.in/sites/default/files/CCTS.pdf"
+
+# ... (keep existing: relevance_keywords, llm_model, qdrant, etc.)
+
+direct_pdfs:
+  sebi_brsr:
+    - name: "BRSR Ease of Doing Business March 2025 Circular (Value Chain Voluntary, Green Credits)"
+      url: "https://www.msei.in/SX-Content/Company-Circulars/2025/March/SEBI-28-Mar-2025-MEASURES-TO-FACILITATE-EASE-OF-DOING-BUSINESS-WITH-RESPECT-TO-FRAMEWORK-FOR-ESG-AND-INTRODUCTION-OF-VOLUNTARY-DISCLOSURE-ON-GREEN-CREDITS..pdf"  # Full PDF from exchange mirror
+    - name: "BRSR Core Framework July 2023 (Foundational)"
+      url: "https://www.sebi.gov.in/legal/circulars/jul-2023/brsr-core-framework-for-assurance-and-esg-disclosures-for-value-chain_73854.html"  # HTML; scraper can handle
+
+  cpcb_epr:
+    - name: "EPR Electronic Trading Platform Guidelines 2025"
+      url: "https://cpcb.nic.in/openpdffile.php?id=TGF0ZXN0RmlsZS80MzBfMTczNTYzNzY5Nl9tZWRpYXBob3RvMTM5ODcucGRm"
+    - name: "Environmental Compensation Regime PWM"
+      url: "https://cpcb.nic.in/uploads/plasticwaste/EC_Regime_PWM.pdf"
+    - name: "Battery Waste EPR Portal Notice"
+      url: "https://cpcb.nic.in/openpdffile.php?id=UmVwb3J0RmlsZXMvMTUxMF8xNjc5MzkzMzc1X21lZGlhcGhvdG8yNDc1OC5wZGY="
+
+  ccts:
+    - name: "CCTS Main Scheme Notification"
+      url: "https://beeindia.gov.in/sites/default/files/CCTS.pdf"
+    - name: "Compliance Procedure under CCTS"
+      url: "https://beeindia.gov.in/sites/default/files/Detailed%20Procedure%20for%20Compliance%20Procedure%20under%20CCTS.pdf"
+    - name: "Offset Mechanism Procedure CCTS"
+      url: "https://beeindia.gov.in/sites/default/files/Detailed%20Procedure%20for%20Offset%20Mechanism_CCTS.pdf"
+    - name: "ACV Agencies Comments Round 2 Oct 2025"
+      url: "https://beeindia.gov.in/sites/default/files/Seeking_stakeholder_comments_on_Provisionally_eligible_Accredited_Carbon_Verification_Agency_under_CCTS-Round2.pdf"

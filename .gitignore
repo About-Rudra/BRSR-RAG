@@ -1,0 +1,17 @@
+# Virtual env
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Data (large files)
+data/*
+vector_db/*
+
+# Env vars
+.env
+
+# IDE files
+.vscode/
