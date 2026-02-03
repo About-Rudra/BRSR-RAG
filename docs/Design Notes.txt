@@ -1,0 +1,9 @@
+We will create three things:
+
+A producer (upload service)
+A queue (Redis Stream)
+A consumer (embedding worker)
+
+They do NOT live in the same file.
+
+*the file is scraped or uploaded it should go into the queue and then the ingestion pipeline do embedding*
