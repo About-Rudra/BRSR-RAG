@@ -13,7 +13,7 @@ python main.py --scrape
 ## Start Qdrant
 docker run -p 6333:6333 qdrant/qdrant
 
-# 2. Start Redis for queues
+## 2. Start Redis for queues
 redis-server
 
 ## 3. Then run ingestion:
@@ -25,5 +25,5 @@ ollama serve
 ## 5. Pull a lightweight model
 ollama pull phi3:mini
 
-# 7. Start backend
+## 7. Start backend
 uvicorn src.api.main:app --reload
