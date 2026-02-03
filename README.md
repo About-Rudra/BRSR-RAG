@@ -13,7 +13,7 @@ python main.py --scrape
 ## Start Qdrant
 docker run -p 6333:6333 qdrant/qdrant
 
-# 2. Start Redis if using queues
+# 2. Start Redis for queues
 redis-server
 
 ## 3. Then run ingestion:
