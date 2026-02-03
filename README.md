@@ -25,8 +25,5 @@ ollama serve
 ## 5. Pull a lightweight model
 ollama pull phi3:mini
 
-# 6. Run ingestion (only once or when data changes)
-python main.py --ingest
-
 # 7. Start backend
 uvicorn src.api.main:app --reload
