@@ -17,3 +17,6 @@ requests==2.31.0
 
 # Optional (but useful)
 pydantic==2.6.4
+
+beautifulsoup4==4.12.3
+

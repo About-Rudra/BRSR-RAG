@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  backend:
+    build: .
+    container_name: brsr-rag-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - qdrant
+    environment:
+      # Qdrant
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:

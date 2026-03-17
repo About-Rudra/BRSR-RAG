@@ -5,7 +5,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 from src.rag.embeddings import embed
 
-# Load config
+# Load config 
 with open("src/config/config.yaml", "r") as f:
     config = yaml.safe_load(f)
 

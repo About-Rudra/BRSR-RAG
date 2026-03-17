@@ -1,15 +1,22 @@
+import os
 import redis
-import time
-import uuid  # for unique consumer name
+import uuid
 from src.rag.ingestion import ingest_single_file
 
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+
+r = redis.Redis(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    decode_responses=True
+)
 
 STREAM_NAME = "ingestion_queue"
 GROUP_NAME = "workers"
-CONSUMER_NAME = f"worker_{uuid.uuid4().hex[:8]}"  # Unique per run
+CONSUMER_NAME = f"worker_{uuid.uuid4().hex[:8]}"
 
-# create group if not exists
+# Create consumer group if not exists
 try:
     r.xgroup_create(STREAM_NAME, GROUP_NAME, id="0", mkstream=True)
 except redis.exceptions.ResponseError as e:
@@ -41,6 +48,5 @@ while True:
             print(f"[{CONSUMER_NAME}] Success: {file_path}")
         except Exception as e:
             print(f"[{CONSUMER_NAME}] Failed: {file_path} → {e}")
-            # Optional: move to dead-letter stream
             r.xadd("dead_letter", data)
             r.xack(STREAM_NAME, GROUP_NAME, msg_id)
