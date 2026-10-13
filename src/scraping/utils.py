@@ -71,6 +71,23 @@ def _find_embedded_pdf_url(html, base_url):
     return None
 
 
+def fetch_pdf_bytes(url):
+    """Return the PDF bytes behind a URL, or None if it is not a PDF.
+    If the URL is an HTML page that embeds a PDF, the embedded PDF is fetched.
+    Network errors are raised (requests.exceptions.RequestException)."""
+    response = session.get(url, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+
+    pdf_bytes = _extract_pdf_bytes(response.content)
+    if pdf_bytes is None:
+        pdf_url = _find_embedded_pdf_url(response.text, url)
+        if pdf_url:
+            response = session.get(pdf_url, timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
+            pdf_bytes = _extract_pdf_bytes(response.content)
+    return pdf_bytes
+
+
 def download_pdf(url, save_path, category):
     """
     Downloads a PDF from URL, saves it,
@@ -78,16 +95,7 @@ def download_pdf(url, save_path, category):
     If the URL is an HTML page that embeds a PDF, the embedded PDF is downloaded.
     """
     try:
-        response = session.get(url, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
-
-        pdf_bytes = _extract_pdf_bytes(response.content)
-        if pdf_bytes is None:
-            pdf_url = _find_embedded_pdf_url(response.text, url)
-            if pdf_url:
-                response = session.get(pdf_url, timeout=REQUEST_TIMEOUT)
-                response.raise_for_status()
-                pdf_bytes = _extract_pdf_bytes(response.content)
+        pdf_bytes = fetch_pdf_bytes(url)
 
         if pdf_bytes is None:
             print(f"Skipped (not a PDF): {url}")

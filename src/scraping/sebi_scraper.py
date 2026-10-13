@@ -5,10 +5,10 @@ from .utils import download_pdf, check_relevancy_with_ai, safe_filename, session
 CATEGORY = "sebi_brsr"
 
 
-def scrape_sebi():  # Main function
+def list_candidates():
     """
-    Scrapes the SEBI circulars list, filters relevant ones, and downloads their PDFs.
-    Why: Encapsulates logic; callable from main.py.
+    List circulars on the SEBI circulars page as {url, title, regime, date}, without downloading.
+    Used by the regulation watch and by scrape_sebi().
     """
     url = config['sebi_url']  # From config
     try:
@@ -20,7 +20,7 @@ def scrape_sebi():  # Main function
 
     soup = BeautifulSoup(response.text, 'html.parser')  # Parse HTML
 
-    notifications = []  # List to store relevant ones
+    candidates = []
     # The listing is a table: each row is <td>date</td><td><a href=circular page>title</a></td>
     for row in soup.select('table tr'):
         cells = row.find_all('td')
@@ -29,16 +29,28 @@ def scrape_sebi():  # Main function
         a = cells[1].find('a', href=True)
         if not a:
             continue
-        date = cells[0].text.strip()  # e.g., "Oct 07, 2026"
-        title = (a.get('title') or a.text).strip()
-        full_link = urljoin(url, a['href'])  # Links may be relative
+        candidates.append({
+            'url': urljoin(url, a['href']),  # Links may be relative
+            'title': (a.get('title') or a.text).strip(),
+            'regime': CATEGORY,
+            'date': cells[0].text.strip(),  # e.g., "Oct 07, 2026"
+        })
+    return candidates
 
-        is_relevant, summary = check_relevancy_with_ai(title)  # Quick check on title
+
+def scrape_sebi():  # Main function
+    """
+    Scrapes the SEBI circulars list, filters relevant ones, and downloads their PDFs.
+    Why: Encapsulates logic; callable from main.py.
+    """
+    notifications = []  # List to store relevant ones
+    for c in list_candidates():
+        is_relevant, summary = check_relevancy_with_ai(c['title'])  # Quick check on title
         if is_relevant:
             # The circular page is an HTML viewer; download_pdf follows the embedded PDF.
-            save_path = f"data/raw/{CATEGORY}/{safe_filename(title)}.pdf"
-            if download_pdf(full_link, save_path, CATEGORY):
-                notifications.append({'date': date, 'title': title, 'summary': summary, 'path': save_path})
+            save_path = f"data/raw/{CATEGORY}/{safe_filename(c['title'])}.pdf"
+            if download_pdf(c['url'], save_path, CATEGORY):
+                notifications.append({'date': c['date'], 'title': c['title'], 'summary': summary, 'path': save_path})
     return notifications  # Return list of processed items
 
 

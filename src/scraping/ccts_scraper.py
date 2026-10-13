@@ -5,8 +5,9 @@ from .utils import download_pdf, check_relevancy_with_ai, safe_filename, session
 CATEGORY = "ccts"
 
 
-def scrape_ccts():
-    notifications = []
+def list_candidates():
+    """List PDF links on the configured BEE pages as {url, title, regime}, without downloading."""
+    candidates, seen = [], set()
     for entry in config.get('ccts_urls', []):
         url = entry['url']
         try:
@@ -18,15 +19,23 @@ def scrape_ccts():
 
         soup = BeautifulSoup(response.text, 'html.parser')
         for a in soup.find_all('a', href=True):
-            title = a.text.strip()
             link = a['href']
             if 'pdf' in link.lower():
                 full_link = urljoin(url, link)
-                is_relevant, summary = check_relevancy_with_ai(title)
-                if is_relevant:
-                    save_path = f"data/raw/{CATEGORY}/{safe_filename(title)}.pdf"
-                    if download_pdf(full_link, save_path, CATEGORY):
-                        notifications.append({'title': title, 'summary': summary, 'path': save_path})
+                if full_link not in seen:
+                    seen.add(full_link)
+                    candidates.append({'url': full_link, 'title': a.text.strip(), 'regime': CATEGORY})
+    return candidates
+
+
+def scrape_ccts():
+    notifications = []
+    for c in list_candidates():
+        is_relevant, summary = check_relevancy_with_ai(c['title'])
+        if is_relevant:
+            save_path = f"data/raw/{CATEGORY}/{safe_filename(c['title'])}.pdf"
+            if download_pdf(c['url'], save_path, CATEGORY):
+                notifications.append({'title': c['title'], 'summary': summary, 'path': save_path})
     return notifications
 
 
