@@ -10,8 +10,13 @@ Documents are stored under `data/raw/<regime>/`, where `<regime>` is one of
 2. Activate: `source venv/bin/activate` (or Windows equivalent)
 3. Install deps: `pip install -r requirements.txt`
 
-## Start Qdrant
-docker run -p 6333:6333 qdrant/qdrant
+## Configure
+Copy `.env.example` to `.env` and fill in your API key.
+
+## Qdrant
+By default (`QDRANT_MODE=local`) Qdrant runs embedded and stores its data in `vector_db/`;
+no server is needed. To use a server instead, set `QDRANT_MODE=server` and run
+`docker run -p 6333:6333 qdrant/qdrant`.
 
 ## Download documents
 python main.py --scrape
@@ -31,11 +36,10 @@ Ingests every PDF under `data/raw/sebi_brsr/`, `data/raw/cpcb_epr/` and `data/ra
 synchronously. Safe to re-run: chunk IDs are deterministic, so re-ingesting a file replaces
 its chunks instead of duplicating them.
 
-## Install & Start Ollama
-ollama serve
-
-## Pull a lightweight model
-ollama pull phi3:mini
+## LLM
+Set `LLM_PROVIDER` (`gemini` default, `groq`, or `ollama`) and `LLM_MODEL`. The baseline
+chatbot and the agent read the same settings. Ollama is optional: `pip install langchain-ollama`,
+`ollama serve`, `ollama pull phi3:mini`.
 
 ## Start backend
 uvicorn src.api.main:app --reload
