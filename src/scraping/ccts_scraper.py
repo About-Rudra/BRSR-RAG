@@ -1,13 +1,16 @@
-import requests
+from urllib.parse import urljoin
 from bs4 import BeautifulSoup
-from .utils import download_pdf, check_relevancy_with_ai, config
+from .utils import download_pdf, check_relevancy_with_ai, safe_filename, session, config, REQUEST_TIMEOUT
+
+CATEGORY = "ccts"
+
 
 def scrape_ccts():
     notifications = []
     for entry in config.get('ccts_urls', []):
         url = entry['url']
         try:
-            response = requests.get(url)
+            response = session.get(url, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
         except Exception as e:
             print(f"Error fetching CCTS: {e}")
@@ -18,13 +21,14 @@ def scrape_ccts():
             title = a.text.strip()
             link = a['href']
             if 'pdf' in link.lower():
-                full_link = requests.urljoin(url, link)
+                full_link = urljoin(url, link)
                 is_relevant, summary = check_relevancy_with_ai(title)
                 if is_relevant:
-                    save_path = f"data/raw/ccts/{title[:50].replace(' ', '_')}.pdf"
-                    if download_pdf(full_link, save_path):
+                    save_path = f"data/raw/{CATEGORY}/{safe_filename(title)}.pdf"
+                    if download_pdf(full_link, save_path, CATEGORY):
                         notifications.append({'title': title, 'summary': summary, 'path': save_path})
     return notifications
+
 
 if __name__ == "__main__":
     results = scrape_ccts()

@@ -1,8 +1,8 @@
 import os
+import re
 import requests
 from urllib.parse import urljoin, urlparse, parse_qs
 from bs4 import BeautifulSoup
-from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import yaml
 import warnings
@@ -22,6 +22,26 @@ with open('src/config/config.yaml', 'r') as file:
 # Optional: Global session with relaxed SSL (for gov sites on Windows)
 session = requests.Session()
 session.verify = False  # Bypass SSL verification issues safely for scraping
+
+REQUEST_TIMEOUT = 30
+
+
+def check_relevancy_with_ai(text):
+    """
+    Keyword relevance check (placeholder; Phase 3 replaces it with an LLM filter).
+    Returns (is_relevant, reason).
+    """
+    lowered = text.lower()
+    for keyword in config.get('relevance_keywords', []):
+        if keyword.lower() in lowered:
+            return True, f"matched keyword '{keyword}'"
+    return False, "no relevance keyword matched"
+
+
+def safe_filename(title, max_len=60):
+    """Turn a link title into a filename that is valid on Windows and Linux."""
+    name = re.sub(r'[^A-Za-z0-9._()-]+', '_', title).strip('_')
+    return name[:max_len] or "document"
 
 
 def _extract_pdf_bytes(content):
@@ -55,14 +75,14 @@ def download_pdf(url, save_path, category):
     If the URL is an HTML page that embeds a PDF, the embedded PDF is downloaded.
     """
     try:
-        response = session.get(url, timeout=30)
+        response = session.get(url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
 
         pdf_bytes = _extract_pdf_bytes(response.content)
         if pdf_bytes is None:
             pdf_url = _find_embedded_pdf_url(response.text, url)
             if pdf_url:
-                response = session.get(pdf_url, timeout=30)
+                response = session.get(pdf_url, timeout=REQUEST_TIMEOUT)
                 response.raise_for_status()
                 pdf_bytes = _extract_pdf_bytes(response.content)
 
@@ -85,7 +105,7 @@ def download_pdf(url, save_path, category):
 
         return True
 
-    except requests.exceptions.RequestException as e:
+    except (requests.exceptions.RequestException, OSError) as e:
         print(f"Error downloading {url}: {e}")
         return False
 
