@@ -52,13 +52,29 @@ LLM) and sends rejected work back once; the **Writer** answers from verified cla
 document and page citations and a "Could not verify" section. The full trace is saved to
 `runs/research_<timestamp>.json`. The single-call baseline (`src/rag/chatbot.py::chat`) is unchanged.
 
+## Regulation watch
+python main.py --watch                                   # live check of the SEBI, CPCB and BEE sites
+python main.py --watch --simulate path/to/new.pdf        # SIMULATION: treat a local PDF as newly found
+python main.py --pending                                 # list summaries waiting for approval
+python main.py --approve <id>   /   --reject <id>
+
+New or changed documents (SHA-256 diff against `data/registry.json`) pass a keyword-then-LLM
+relevance filter, are ingested, summarised with page citations, checked by the same verifier as
+the research agent, and wait in `data/updates_pending.json` until a person approves them into
+`data/updates_log.json`.
+
+## Evaluation
+See [eval/README.md](eval/README.md): write your own questions in `eval/questions.jsonl`, then
+`python -m eval.run_eval` and `python -m eval.summarise <summary.csv>`.
+
 ## Web UI
 streamlit run streamlit_app.py
 
 For a public link, see [docs/deploy_streamlit.md](docs/deploy_streamlit.md).
 
 ## Tests
-pytest
+pytest -m "not llm"   # no API key needed
+pytest               # also runs the live-LLM behaviour tests
 
 ## Start backend (baseline API)
 uvicorn src.api.main:app --reload
