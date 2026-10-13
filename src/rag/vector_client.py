@@ -1,7 +1,10 @@
 import atexit
 import os
 import yaml
+from dotenv import load_dotenv
 from qdrant_client import QdrantClient
+
+load_dotenv()
 
 with open("src/config/config.yaml", "r") as f:
     config = yaml.safe_load(f)
