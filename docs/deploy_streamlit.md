@@ -32,9 +32,9 @@ git push origin main
 3. **Advanced settings**: Python 3.12. Paste the secrets below:
    ```toml
    LLM_PROVIDER = "gemini"
-   LLM_MODEL = "gemini-3.6-flash"
+   LLM_MODEL = "gemini-3.1-flash-lite"
    GOOGLE_API_KEY = "<your key>"
-   LLM_RPM = "4"          # free tier allows 5 requests/min per model; raise it on a paid key
+   LLM_RPM = "10"         # client-side pacing for the free tier; raise it on a paid key
    QDRANT_MODE = "cloud"
    QDRANT_URL = "https://<cluster-id>.<region>.aws.cloud.qdrant.io:6333"
    QDRANT_API_KEY = "<key>"
@@ -43,9 +43,10 @@ git push origin main
 4. Deploy. The first build takes a few minutes (torch + the embedding model).
    The link looks like `https://<name>.streamlit.app`.
 
-On the Gemini free tier one agent question makes roughly 10-20 LLM calls, so at 4 calls/min it
-takes a few minutes; the app spaces the calls out instead of failing. A paid key or
-`LLM_PROVIDER = "groq"` (higher free limits) makes it much faster.
+One agent question makes roughly 10-20 LLM calls. On a free Gemini key, `gemini-3.6-flash`
+allows only 20 requests per day, i.e. about one question, so the default is
+`gemini-3.1-flash-lite`, which has much higher free limits. Calls are spaced out
+(`LLM_RPM`) instead of failing. A paid key, or `LLM_PROVIDER = "groq"`, also works.
 
 `APP_PASSWORD` is optional. Without it, anyone with the link can run queries on your API quota.
 

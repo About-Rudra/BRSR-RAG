@@ -8,7 +8,7 @@ Environment variables:
   LLM_MODEL        model ID; defaults below if unset
   LLM_TEMPERATURE  default 0.1
   LLM_RPM          max requests per minute, enforced client-side (defaults below; 0 = no limit).
-                   Gemini's free tier allows only a few requests per minute per model.
+                   Gemini's free tier limits requests per minute AND per day, per model.
   GOOGLE_API_KEY   for gemini (GEMINI_API_KEY is accepted as a fallback)
   GROQ_API_KEY     for groq
   OLLAMA_URL       for ollama, default http://localhost:11434
@@ -22,11 +22,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_MODELS = {
-    "gemini": "gemini-3.6-flash",
+    "gemini": "gemini-3.1-flash-lite",  # free tier: gemini-3.6-flash allows only 20 requests/day
     "groq": "llama-3.3-70b-versatile",
     "ollama": "phi3:mini",
 }
-DEFAULT_RPM = {"gemini": 4, "groq": 30, "ollama": 0}  # gemini free tier: 5/min
+DEFAULT_RPM = {"gemini": 10, "groq": 30, "ollama": 0}
 
 _rate_limiter = None
 
