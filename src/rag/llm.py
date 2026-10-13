@@ -7,6 +7,8 @@ Environment variables:
   LLM_PROVIDER     gemini (default) | groq | ollama
   LLM_MODEL        model ID; defaults below if unset
   LLM_TEMPERATURE  default 0.1
+  LLM_RPM          max requests per minute, enforced client-side (defaults below; 0 = no limit).
+                   Gemini's free tier allows only a few requests per minute per model.
   GOOGLE_API_KEY   for gemini (GEMINI_API_KEY is accepted as a fallback)
   GROQ_API_KEY     for groq
   OLLAMA_URL       for ollama, default http://localhost:11434
@@ -24,6 +26,22 @@ DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",
     "ollama": "phi3:mini",
 }
+DEFAULT_RPM = {"gemini": 4, "groq": 30, "ollama": 0}  # gemini free tier: 5/min
+
+_rate_limiter = None
+
+
+def get_rate_limiter(provider):
+    """One limiter shared by every model instance, so all agent calls are spaced out together."""
+    global _rate_limiter
+    rpm = float(os.getenv("LLM_RPM", DEFAULT_RPM[provider]))
+    if rpm <= 0:
+        return None
+    if _rate_limiter is None:
+        from langchain_core.rate_limiters import InMemoryRateLimiter
+        _rate_limiter = InMemoryRateLimiter(requests_per_second=rpm / 60,
+                                            check_every_n_seconds=0.2, max_bucket_size=1)
+    return _rate_limiter
 
 
 def get_settings():
@@ -46,13 +64,15 @@ def get_chat_model():
             raise RuntimeError("Set GOOGLE_API_KEY to use LLM_PROVIDER=gemini.")
         # max_retries rides out free-tier rate limits (HTTP 429).
         return ChatGoogleGenerativeAI(model=model, temperature=temperature,
-                                      google_api_key=api_key, max_retries=6)
+                                      google_api_key=api_key, max_retries=6,
+                                      rate_limiter=get_rate_limiter(provider))
 
     if provider == "groq":
         from langchain_groq import ChatGroq
         if not os.getenv("GROQ_API_KEY"):
             raise RuntimeError("Set GROQ_API_KEY to use LLM_PROVIDER=groq.")
-        return ChatGroq(model=model, temperature=temperature, max_retries=6)
+        return ChatGroq(model=model, temperature=temperature, max_retries=6,
+                        rate_limiter=get_rate_limiter(provider))
 
     # ollama: optional, only for people running a local model.
     try:
