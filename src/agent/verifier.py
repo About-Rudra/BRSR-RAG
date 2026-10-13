@@ -80,7 +80,8 @@ def verify_claims(subq_id, claims, evidence_by_sid, model=None):
             if v is None:
                 # Fail closed: a claim we could not check is not treated as verified.
                 verdicts[i] = {**base, "supported": False, "checked_by": "llm",
-                               "reason": error or "verifier gave no verdict for this claim"}
+                               "reason": error or "verifier gave no verdict for this claim",
+                               "api_error": bool(error)}
             else:
                 verdicts[i] = {**base, "supported": bool(v.supported), "reason": v.reason,
                                "checked_by": "llm"}
@@ -108,9 +109,11 @@ def verifier_node(state):
         trace.extend(events)
 
     rejected = [v for v in verdicts if not v["supported"]]
+    # Re-researching cannot fix an API failure, so those claims do not trigger the retry.
+    retryable = [v for v in rejected if not v.get("api_error")]
     feedback, to_research, retries = {}, [], state["retries"]
-    if rejected and retries < MAX_RETRIES:
-        for v in rejected:
+    if retryable and retries < MAX_RETRIES:
+        for v in retryable:
             feedback.setdefault(v["subq_id"], []).append({"claim": v["claim"], "reason": v["reason"]})
         to_research = list(feedback)
         retries += 1
