@@ -1,5 +1,6 @@
 import os
 import requests
+from urllib.parse import urljoin, urlparse, parse_qs
 from bs4 import BeautifulSoup
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
@@ -23,18 +24,55 @@ session = requests.Session()
 session.verify = False  # Bypass SSL verification issues safely for scraping
 
 
+def _extract_pdf_bytes(content):
+    """Return the PDF bytes in a response body, or None if it is not a PDF."""
+    if content.startswith(b"%PDF"):
+        return content
+    # Some CPCB links put a small HTML wrapper in front of the PDF bytes.
+    start = content.find(b"%PDF", 0, 4096)
+    if start != -1:
+        return content[start:]
+    return None
+
+
+def _find_embedded_pdf_url(html, base_url):
+    """SEBI circular pages are HTML viewers: <iframe src="../web/?file=<pdf url>">."""
+    soup = BeautifulSoup(html, "html.parser")
+    for iframe in soup.find_all("iframe", src=True):
+        src = iframe["src"]
+        file_param = parse_qs(urlparse(src).query).get("file")
+        if file_param:
+            return urljoin(base_url, file_param[0])
+        if ".pdf" in src.lower():
+            return urljoin(base_url, src)
+    return None
+
+
 def download_pdf(url, save_path, category):
     """
     Downloads a PDF from URL, saves it,
     and submits it for ingestion.
+    If the URL is an HTML page that embeds a PDF, the embedded PDF is downloaded.
     """
     try:
         response = session.get(url, timeout=30)
         response.raise_for_status()
 
+        pdf_bytes = _extract_pdf_bytes(response.content)
+        if pdf_bytes is None:
+            pdf_url = _find_embedded_pdf_url(response.text, url)
+            if pdf_url:
+                response = session.get(pdf_url, timeout=30)
+                response.raise_for_status()
+                pdf_bytes = _extract_pdf_bytes(response.content)
+
+        if pdf_bytes is None:
+            print(f"Skipped (not a PDF): {url}")
+            return False
+
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         with open(save_path, 'wb') as f:
-            f.write(response.content)
+            f.write(pdf_bytes)
 
         print(f"Downloaded: {save_path}")
 
