@@ -1,22 +1,32 @@
+# Pinned to the versions this code has been run against.
+
 # Core backend
-fastapi==0.110.0
-uvicorn==0.27.1
+fastapi==0.128.0
+uvicorn==0.40.0
+pydantic==2.12.5
 
 # RAG + embeddings
-sentence-transformers==2.6.1
-transformers==4.38.2
+sentence-transformers==5.2.0
+transformers==4.57.3
+# torch is left unpinned on purpose: Colab ships its own CUDA/CPU build.
 torch>=2.1.0
 
-# Vector DB
-qdrant-client==1.7.3
+# Vector DB (>=1.10 needed for query_points / collection_exists)
+qdrant-client==1.16.2
+
+# PDF parsing
+pdfplumber==0.11.8
 
 # Config & utilities
-python-dotenv==1.0.1
-pyyaml==6.0.1
-requests==2.31.0
+python-dotenv==1.2.1
+pyyaml==6.0.3
+requests==2.32.5
 
-# Optional (but useful)
-pydantic==2.6.4
+# Scraping
+beautifulsoup4==4.14.3
 
-beautifulsoup4==4.12.3
+# Optional ingestion queue (only used when INGEST_MODE=redis)
+redis==7.1.0
 
+# LLM (Gemini via LangChain)
+langchain-google-genai==4.1.2
