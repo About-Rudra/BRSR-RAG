@@ -18,11 +18,15 @@ def get_client():
     no server needed. Embedded mode locks the folder, so only one client may exist per
     process -- that is why every module must go through this function.
     QDRANT_MODE=server: connect to QDRANT_HOST:QDRANT_PORT (e.g. docker).
+    QDRANT_MODE=cloud: connect to QDRANT_URL with QDRANT_API_KEY (e.g. Qdrant Cloud, for hosting).
     """
     global _client
     if _client is None:
         mode = os.getenv("QDRANT_MODE", "local").lower()
-        if mode == "server":
+        if mode == "cloud":
+            _client = QdrantClient(url=os.environ["QDRANT_URL"],
+                                   api_key=os.getenv("QDRANT_API_KEY"), timeout=60)
+        elif mode == "server":
             _client = QdrantClient(
                 host=os.getenv("QDRANT_HOST", config.get("qdrant_host", "localhost")),
                 port=int(os.getenv("QDRANT_PORT", config.get("qdrant_port", 6333))),

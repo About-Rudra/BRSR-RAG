@@ -3,6 +3,7 @@ import pdfplumber
 import uuid
 from qdrant_client.http.models import (
     Distance, VectorParams, Filter, FieldCondition, MatchValue, FilterSelector, PointStruct,
+    PayloadSchemaType,
 )
 from src.rag.embeddings import embed
 from src.rag.vector_client import get_client, COLLECTION
@@ -19,6 +20,10 @@ def ensure_collection():
                 distance=Distance.COSINE
             ),
         )
+        # Filtered search on category/source needs payload indexes on Qdrant Cloud.
+        for field in ("category", "source"):
+            client.create_payload_index(COLLECTION, field_name=field,
+                                        field_schema=PayloadSchemaType.KEYWORD)
 
 
 def chunk_text(text, chunk_size=800, overlap=100):
