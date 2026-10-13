@@ -1,9 +1,13 @@
+import os
 from src.rag.retrieval import retrieve
 from src.rag.llm import call_llm
 
+# Number of retrieved chunks passed to the LLM as context.
+TOP_K_CONTEXT = int(os.getenv("TOP_K_CONTEXT", 4))
+
 def build_prompt(query, contexts):
     context_block = "\n\n".join(
-        f"[Source: {c['source']}]\n{c['text'][:400]}"
+        f"[Source: {c['source']}]\n{c['text']}"
         for c in contexts
     )
 
@@ -23,18 +27,13 @@ Answer clearly and cite sources.
 
 
 def chat(query):
-    contexts = sorted(retrieve(query), key=lambda x: x["score"], reverse=True)[:2]
-
-
+    contexts = sorted(retrieve(query, top_k=TOP_K_CONTEXT), key=lambda x: x["score"], reverse=True)
 
     if not contexts:
         return {
             "answer": "No relevant information found in the knowledge base.",
             "sources": []
         }
-
-    # IMPORTANT: limit context size
-    contexts = sorted(contexts, key=lambda x: x["score"], reverse=True)[:4]
 
     prompt = build_prompt(query, contexts)
 
