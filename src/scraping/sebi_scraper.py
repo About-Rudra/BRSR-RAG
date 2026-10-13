@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup  # For parsing HTML
 from .utils import download_pdf, check_relevancy_with_ai, safe_filename, session, config, REQUEST_TIMEOUT
 
-CATEGORY = "sebi"
+CATEGORY = "sebi_brsr"
 
 
 def scrape_sebi():  # Main function

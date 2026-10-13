@@ -25,6 +25,9 @@ session.verify = False  # Bypass SSL verification issues safely for scraping
 
 REQUEST_TIMEOUT = 30
 
+# The three regime keys: used as data/raw/<key>/ folder names and as the Qdrant `category` payload.
+REGIMES = ("sebi_brsr", "cpcb_epr", "ccts")
+
 
 def check_relevancy_with_ai(text):
     """

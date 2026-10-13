@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from .utils import download_pdf, check_relevancy_with_ai, safe_filename, session, config, REQUEST_TIMEOUT
 
-CATEGORY = "cpcb"
+CATEGORY = "cpcb_epr"
 
 
 def scrape_cpcb():
