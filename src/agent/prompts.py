@@ -102,3 +102,42 @@ Write a clear markdown answer:
 - After each point, copy the square-bracket sources of the claim(s) it uses exactly, e.g. [Compliance_Procedure_under_CCTS.pdf, p. 10].
 - If the claims only partly answer the question, say which part is answered.
 - Do not write a "Could not verify" section; it is added separately."""
+
+
+# ---------------- Regulation watch ----------------
+
+RELEVANCE_PROMPT = """You screen newly published regulatory documents for an Indian ESG / compliance knowledge base.
+
+{regime_guide}
+
+{untrusted_note}
+
+Decide whether this document is relevant to one of the three regimes (sustainability reporting under
+SEBI BRSR, CPCB extended producer responsibility for plastic or battery waste, or the BEE carbon
+credit trading scheme). Unrelated notices (tenders, recruitment, IT, debt markets, mutual funds,
+organisation charts, etc.) are NOT relevant.
+
+Title: {title}
+
+<<UNTRUSTED_DOCUMENT_START>>
+{text}
+<<END>>
+
+Return relevant (true/false), the best-matching regime (sebi_brsr, cpcb_epr, ccts, or any if not relevant), and a one-sentence reason."""
+
+
+SUMMARISER_PROMPT = """You summarise a newly published regulatory document for a compliance officer.
+
+{untrusted_note}
+
+Document: {title} (regime: {regime})
+Its pages are given below as passages [S1], [S2], ... (one per page).
+
+{passages}
+
+Write short factual claims under four headings, each claim citing the page passage ids that state it:
+- what_it_is: what the document is (type, issuer, subject).
+- what_changes: what it introduces, amends or requires.
+- who_is_affected: which entities it applies to.
+- key_dates: effective dates and deadlines. Leave empty if the document gives none.
+Use only what the passages say. 1-4 claims per heading. Never cite an id that is not shown above."""
