@@ -3,8 +3,12 @@
 1. Code check (no LLM): every cited sid must exist in the evidence. A claim with no
    citation, or citing an unknown sid, is unsupported and never sent to the LLM.
 2. LLM check: claim + full text of its cited passages -> {supported, reason}.
+   To stay within free-tier rate limits, all claims of one sub-question go in a single
+   call, but each claim is shown only with its own cited passages and judged separately.
 Also used by route_after_verify to decide whether to send sub-questions back once.
 """
+from typing import List
+
 from pydantic import BaseModel
 
 from src.rag import llm as llm_module
@@ -12,9 +16,14 @@ from src.agent import prompts
 from src.agent.state import MAX_RETRIES, event
 
 
-class VerdictModel(BaseModel):
+class ClaimVerdict(BaseModel):
+    claim_number: int
     supported: bool
     reason: str
+
+
+class VerdictListModel(BaseModel):
+    verdicts: List[ClaimVerdict]
 
 
 def _format_cited(passages):
@@ -37,35 +46,50 @@ def code_check(claim, evidence_by_sid):
 
 def verify_claims(subq_id, claims, evidence_by_sid, model=None):
     """Verify a list of claims. Returns (verdicts, llm calls used, trace events)."""
-    verdicts, trace, llm_calls = [], [], 0
-    judge = None
+    verdicts, llm_calls = {}, 0
+    to_judge = []  # (claim number, claim) pairs that passed the code check
     for i, claim in enumerate(claims):
         base = {"subq_id": subq_id, "claim_index": i, "claim": claim["text"], "sids": claim["sids"]}
         problem = code_check(claim, evidence_by_sid)
         if problem:
-            verdict = {**base, "supported": False, "reason": problem, "checked_by": "code"}
+            verdicts[i] = {**base, "supported": False, "reason": problem, "checked_by": "code"}
         else:
-            if judge is None:
-                judge = (model or llm_module.get_chat_model()).with_structured_output(VerdictModel)
-            prompt = prompts.VERIFIER_PROMPT.format(
-                untrusted_note=prompts.UNTRUSTED_NOTE, claim=claim["text"],
-                passages=_format_cited([evidence_by_sid[s] for s in claim["sids"]]))
-            llm_calls += 1
-            try:
-                result = judge.invoke(prompt)
-                if isinstance(result, dict):
-                    result = VerdictModel.model_validate(result)
-                verdict = {**base, "supported": bool(result.supported), "reason": result.reason,
-                           "checked_by": "llm"}
-            except Exception as e:
+            to_judge.append((i, claim))
+
+    if to_judge:
+        blocks = []
+        for i, claim in to_judge:
+            blocks.append(f"### Claim {i + 1}\n{claim['text']}\n\nCited passages for claim {i + 1}:\n"
+                          + _format_cited([evidence_by_sid[s] for s in claim["sids"]]))
+        prompt = prompts.VERIFIER_PROMPT.format(untrusted_note=prompts.UNTRUSTED_NOTE,
+                                                claims="\n\n".join(blocks))
+        llm_calls += 1
+        judged = {}
+        try:
+            judge = (model or llm_module.get_chat_model()).with_structured_output(VerdictListModel)
+            result = judge.invoke(prompt)
+            if isinstance(result, dict):
+                result = VerdictListModel.model_validate(result)
+            judged = {v.claim_number - 1: v for v in (result.verdicts if result else [])}
+            error = None
+        except Exception as e:
+            error = f"verifier error: {e}"[:300]
+        for i, claim in to_judge:
+            base = {"subq_id": subq_id, "claim_index": i, "claim": claim["text"], "sids": claim["sids"]}
+            v = judged.get(i)
+            if v is None:
                 # Fail closed: a claim we could not check is not treated as verified.
-                verdict = {**base, "supported": False, "reason": f"verifier error: {e}"[:300],
-                           "checked_by": "llm"}
-        verdicts.append(verdict)
-        trace.append(event("verifier", "verdict", subq=subq_id, claim=claim["text"][:200],
-                           sids=claim["sids"], supported=verdict["supported"],
-                           reason=verdict["reason"], checked_by=verdict["checked_by"]))
-    return verdicts, llm_calls, trace
+                verdicts[i] = {**base, "supported": False, "checked_by": "llm",
+                               "reason": error or "verifier gave no verdict for this claim"}
+            else:
+                verdicts[i] = {**base, "supported": bool(v.supported), "reason": v.reason,
+                               "checked_by": "llm"}
+
+    ordered = [verdicts[i] for i in sorted(verdicts)]
+    trace = [event("verifier", "verdict", subq=subq_id, claim=v["claim"][:200], sids=v["sids"],
+                   supported=v["supported"], reason=v["reason"], checked_by=v["checked_by"])
+             for v in ordered]
+    return ordered, llm_calls, trace
 
 
 def verifier_node(state):

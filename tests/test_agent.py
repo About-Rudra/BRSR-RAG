@@ -6,7 +6,7 @@ import src.rag.llm as llm
 from src.agent import tools, researcher
 from src.agent.planner import make_plan
 from src.agent.state import MAX_TOOL_CALLS_PER_SUBQ
-from src.agent.verifier import VerdictModel, verify_claims
+from src.agent.verifier import ClaimVerdict, VerdictListModel, verify_claims
 from tests.fake_llm import FakeChatModel, tool_turn, last_tool_sids, final
 
 FAKE_HITS = [{"text": "Obligated entities shall surrender carbon credit certificates.",
@@ -59,7 +59,8 @@ def test_researcher_returns_cited_claims(monkeypatch, stub_search):
 
 
 def test_verifier_rejects_missing_sid(monkeypatch):
-    model = FakeChatModel(structured=lambda schema, prompt: VerdictModel(supported=True, reason="ok"))
+    model = FakeChatModel(structured=lambda schema, prompt: VerdictListModel(
+        verdicts=[ClaimVerdict(claim_number=1, supported=True, reason="ok")]))
     evidence = {"S1": {"sid": "S1", "text": "x", "source": "doc.pdf", "page": 1}}
     claims = [{"text": "cites a missing id", "sids": ["S7"]},
               {"text": "cites nothing", "sids": []}]
@@ -77,6 +78,19 @@ def test_verifier_fails_closed_on_llm_error():
     verdicts, _, _ = verify_claims("Q1", [{"text": "c", "sids": ["S1"]}], evidence,
                                    model=FakeChatModel(structured=boom))
     assert verdicts[0]["supported"] is False
+
+
+def test_verifier_batches_claims_and_fails_closed_on_missing_verdict():
+    evidence = {"S1": {"sid": "S1", "text": "a", "source": "doc.pdf", "page": 1},
+                "S2": {"sid": "S2", "text": "b", "source": "doc.pdf", "page": 2}}
+    claims = [{"text": "claim one", "sids": ["S1"]}, {"text": "bad", "sids": ["S9"]},
+              {"text": "claim three", "sids": ["S2"]}]
+    # The judge only answers for claim 1; claim 3 gets no verdict and must count as unsupported.
+    model = FakeChatModel(structured=lambda schema, prompt: VerdictListModel(
+        verdicts=[ClaimVerdict(claim_number=1, supported=True, reason="stated")]))
+    verdicts, llm_calls, _ = verify_claims("Q1", claims, evidence, model=model)
+    assert llm_calls == 1
+    assert [(v["supported"], v["checked_by"]) for v in verdicts] == [(True, "llm"), (False, "code"), (False, "llm")]
 
 
 def test_planner_falls_back_after_invalid_output(monkeypatch):

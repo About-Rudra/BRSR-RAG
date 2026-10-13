@@ -184,8 +184,14 @@ def researcher_node(state):
             continue
         trace.append(event("researcher", "start", subq=subq["id"], text=subq["text"],
                            regime=subq["regime"], retry=bool(state["feedback"].get(subq["id"]))))
-        finding, calls, n_llm, events = research_subquestion(
-            subq, store, state["feedback"].get(subq["id"], []))
+        try:
+            finding, calls, n_llm, events = research_subquestion(
+                subq, store, state["feedback"].get(subq["id"], []))
+        except Exception as e:
+            # e.g. the LLM API is down or out of quota: report it instead of crashing the run.
+            finding = {"subq_id": subq["id"], "claims": [], "note": f"research failed: {e}"[:300]}
+            calls, n_llm = 0, 0
+            events = [event("researcher", "error", subq=subq["id"], detail=str(e)[:300])]
         findings[subq["id"]] = finding
         tool_calls[subq["id"]] = tool_calls.get(subq["id"], 0) + calls
         llm_calls += n_llm

@@ -76,19 +76,17 @@ WEAK_RESULTS_HINT = (
 )
 
 
-VERIFIER_PROMPT = """You check whether a claim is supported by source passages.
+VERIFIER_PROMPT = """You check whether claims are supported by source passages.
 
 {untrusted_note}
 
-Claim: {claim}
+Each claim below is followed by the passages it cites. Judge EACH claim separately, only
+against ITS OWN cited passages, not against other claims' passages or your own knowledge.
+- supported = true only if its passages state the claim (paraphrase is fine).
+- supported = false if the claim adds details, numbers, dates or conclusions its passages do not contain, or contradicts them.
+Return one verdict per claim, using the claim's number, with a one-sentence reason.
 
-Cited passages:
-{passages}
-
-Is the claim fully supported by the cited passages alone? Judge only against these passages, not your own knowledge.
-- supported = true only if the passages state the claim (paraphrase is fine).
-- supported = false if the claim adds details, numbers, dates or conclusions the passages do not contain, or contradicts them.
-Give a one-sentence reason."""
+{claims}"""
 
 
 WRITER_PROMPT = """You write the final answer to a compliance question.
