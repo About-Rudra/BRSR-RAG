@@ -1,0 +1,3 @@
+{"id": "Q01", "question": "<your question, written from reading the PDFs>", "regimes": ["sebi_brsr"], "expected_answer": "<the answer in your own words>", "expected_source": "<file name of the source PDF, e.g. BRSR_Core_Framework_July_2023_(Foundational).pdf>", "expected_page": 0, "type": "single"}
+{"id": "Q02", "question": "<a question that needs two regimes>", "regimes": ["sebi_brsr", "ccts"], "expected_answer": "<the answer in your own words>", "expected_source": "<main source PDF>", "expected_page": 0, "type": "multi_regime"}
+{"id": "Q03", "question": "<a question whose answer is NOT in the indexed documents>", "regimes": [], "expected_answer": "<not in corpus>", "expected_source": "", "expected_page": 0, "type": "not_in_corpus"}
