@@ -1,6 +1,7 @@
 import os
 import pdfplumber
 import uuid
+import warnings
 from qdrant_client.http.models import (
     Distance, VectorParams, Filter, FieldCondition, MatchValue, FilterSelector, PointStruct,
     PayloadSchemaType,
@@ -21,9 +22,12 @@ def ensure_collection():
             ),
         )
         # Filtered search on category/source needs payload indexes on Qdrant Cloud.
-        for field in ("category", "source"):
-            client.create_payload_index(COLLECTION, field_name=field,
-                                        field_schema=PayloadSchemaType.KEYWORD)
+        # (Embedded mode ignores them and warns; the warning is harmless.)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            for field in ("category", "source"):
+                client.create_payload_index(COLLECTION, field_name=field,
+                                            field_schema=PayloadSchemaType.KEYWORD)
 
 
 def chunk_text(text, chunk_size=800, overlap=100):
