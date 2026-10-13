@@ -15,3 +15,5 @@ vector_db/*
 
 # IDE files
 .vscode/
+# Agent run logs
+runs/

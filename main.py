@@ -5,6 +5,7 @@ import os
 parser = argparse.ArgumentParser()
 parser.add_argument('--scrape', action='store_true', help='Run all scrapers and download key PDFs')
 parser.add_argument('--ingest', action='store_true', help='Ingest every PDF under data/raw/<regime>/ into Qdrant')
+parser.add_argument('--ask', metavar='QUESTION', help='Answer a question with the research agent')
 
 args = parser.parse_args()
 
@@ -50,3 +51,11 @@ if args.ingest:
                 print(f"Ingestion failed for {file_path}: {e}")
 
     print(f"\nIngest done: {total} file(s) attempted, {failed} raised errors (see log above).")
+
+if args.ask:
+    from src.agent.graph import run_research, save_run
+
+    result = run_research(args.ask)
+    print(result["final_answer"])
+    print(f"\nStats: {result['stats']}")
+    print(f"Full trace saved to {save_run(result)}")
