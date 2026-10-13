@@ -1,11 +1,14 @@
 import os
 import pdfplumber
+import uuid
 import yaml
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams
+from qdrant_client.http.models import (
+    Distance, VectorParams, Filter, FieldCondition, MatchValue, FilterSelector, PointStruct,
+)
 from src.rag.embeddings import embed
 
-# Load config 
+# Load config
 with open("src/config/config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -17,15 +20,18 @@ client = QdrantClient(
     port=config["qdrant_port"]
 )
 
-# Ensure collection exists
-if not client.collection_exists(COLLECTION):
-    client.create_collection(
-        collection_name=COLLECTION,
-        vectors_config=VectorParams(
-            size=384,
-            distance=Distance.COSINE
-        ),
-    )
+
+def ensure_collection():
+    """Create the collection on first use (not at import, so importing never needs a live DB)."""
+    if not client.collection_exists(COLLECTION):
+        client.create_collection(
+            collection_name=COLLECTION,
+            vectors_config=VectorParams(
+                size=384,
+                distance=Distance.COSINE
+            ),
+        )
+
 
 def chunk_text(text, chunk_size=800, overlap=100):
     chunks = []
@@ -39,51 +45,82 @@ def chunk_text(text, chunk_size=800, overlap=100):
     return chunks
 
 
+def point_id(category, source, i):
+    """Deterministic ID: the same chunk of the same file always gets the same ID,
+    so re-ingesting overwrites instead of duplicating. (Python's hash() is
+    randomised per run and can be negative, which Qdrant rejects.)"""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{category}/{source}:{i}"))
+
+
 def ingest_single_file(file_path, category):
     """
     Ingest ONE file into Qdrant.
     Called by queue workers.
     """
 
-    print(f"➡️ Ingesting file: {file_path}")
+    print(f"[ingest] Ingesting file: {file_path}")
 
     if not os.path.exists(file_path):
-        print("❌ File does not exist, skipping")
+        print("[ingest] File does not exist, skipping")
         return
 
-    text = ""
+    # Read page by page so every chunk knows which page it came from.
+    pages = []  # (page_number, text), 1-based
     try:
         with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
+            for page_number, page in enumerate(pdf.pages, start=1):
                 page_text = page.extract_text()
                 if page_text:
-                    text += page_text + "\n"
+                    pages.append((page_number, page_text))
     except Exception as e:
-        print("❌ PDF read failed:", e)
+        print("[ingest] PDF read failed:", e)
         return
 
-    if len(text.strip()) < 200:
-        print("⚠️ Skipped (too little text)")
+    if sum(len(t.strip()) for _, t in pages) < 200:
+        print("[ingest] Skipped (too little text)")
         return
 
-    chunks = chunk_text(text)
-    vectors = embed(chunks)
+    # Chunk each page separately: a chunk never spans two pages.
+    chunks = []  # (page_number, chunk_text)
+    for page_number, page_text in pages:
+        for chunk in chunk_text(page_text):
+            chunks.append((page_number, chunk))
+
+    if not chunks:
+        print("[ingest] Skipped (no chunks)")
+        return
+
+    ensure_collection()  # fail fast if Qdrant is unreachable, before the slow embedding step
+
+    vectors = embed([c for _, c in chunks])
+    source = os.path.basename(file_path)
 
     points = []
-    for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
-        points.append({
-            "id": hash(file_path + str(i)),
-            "vector": vector.tolist(),
-            "payload": {
+    for i, ((page_number, chunk), vector) in enumerate(zip(chunks, vectors)):
+        points.append(PointStruct(
+            id=point_id(category, source, i),
+            vector=vector.tolist(),
+            payload={
                 "text": chunk,
-                "source": os.path.basename(file_path),
-                "category": category
+                "source": source,
+                "category": category,
+                "page": page_number
             }
-        })
+        ))
+
+    # Remove this file's old chunks first, so a re-ingested file that now
+    # produces fewer chunks does not leave stale ones behind.
+    client.delete(
+        collection_name=COLLECTION,
+        points_selector=FilterSelector(filter=Filter(must=[
+            FieldCondition(key="source", match=MatchValue(value=source)),
+            FieldCondition(key="category", match=MatchValue(value=category)),
+        ])),
+    )
 
     client.upsert(
         collection_name=COLLECTION,
         points=points
     )
 
-    print(f"✅ Stored {len(points)} chunks from {file_path}")
+    print(f"[ingest] Stored {len(points)} chunks from {file_path}")
