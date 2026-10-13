@@ -1,28 +1,16 @@
 import os
 import pdfplumber
 import uuid
-import yaml
-from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     Distance, VectorParams, Filter, FieldCondition, MatchValue, FilterSelector, PointStruct,
 )
 from src.rag.embeddings import embed
-
-# Load config
-with open("src/config/config.yaml", "r") as f:
-    config = yaml.safe_load(f)
-
-COLLECTION = config["collection_name"]
-
-# Connect to Qdrant
-client = QdrantClient(
-    host=config["qdrant_host"],
-    port=config["qdrant_port"]
-)
+from src.rag.vector_client import get_client, COLLECTION
 
 
 def ensure_collection():
     """Create the collection on first use (not at import, so importing never needs a live DB)."""
+    client = get_client()
     if not client.collection_exists(COLLECTION):
         client.create_collection(
             collection_name=COLLECTION,
@@ -110,6 +98,7 @@ def ingest_single_file(file_path, category):
 
     # Remove this file's old chunks first, so a re-ingested file that now
     # produces fewer chunks does not leave stale ones behind.
+    client = get_client()
     client.delete(
         collection_name=COLLECTION,
         points_selector=FilterSelector(filter=Filter(must=[

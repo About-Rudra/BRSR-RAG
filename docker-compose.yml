@@ -27,6 +27,7 @@ services:
       - qdrant
     environment:
       # Qdrant
+      QDRANT_MODE: server
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
 

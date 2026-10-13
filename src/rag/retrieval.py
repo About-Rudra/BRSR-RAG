@@ -1,34 +1,29 @@
-import os
-import yaml
-from qdrant_client import QdrantClient
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from src.rag.embeddings import embed
-
-# Load config
-with open("src/config/config.yaml", "r") as f:
-    config = yaml.safe_load(f)
-
-QDRANT_HOST = os.getenv("QDRANT_HOST", config.get("qdrant_host", "localhost"))
-QDRANT_PORT = int(os.getenv("QDRANT_PORT", config.get("qdrant_port", 6333)))
-
-client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-
-COLLECTION = config["collection_name"]
+from src.rag.vector_client import get_client, COLLECTION
 
 
-def retrieve(query, top_k=6, score_threshold=0.2):
+def retrieve(query, top_k=6, score_threshold=0.2, category=None):
     """Return up to top_k chunks for the query, best first.
 
     Chunks scoring below score_threshold are dropped (pass None to keep all).
+    category restricts the search to one regime (sebi_brsr / cpcb_epr / ccts).
     Returns [] if the collection does not exist yet or nothing matches.
     """
+    client = get_client()
     if not client.collection_exists(COLLECTION):
         return []
 
     query_vector = embed([query])[0].tolist()
 
+    query_filter = None
+    if category:
+        query_filter = Filter(must=[FieldCondition(key="category", match=MatchValue(value=category))])
+
     hits = client.query_points(
         collection_name=COLLECTION,
         query=query_vector,
+        query_filter=query_filter,
         limit=top_k,
         with_payload=True,
     ).points

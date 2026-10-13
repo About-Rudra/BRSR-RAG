@@ -1,11 +1,7 @@
-from qdrant_client import QdrantClient
-import yaml
+from src.rag.vector_client import get_client, COLLECTION
 
-with open('src/config/config.yaml', 'r') as f:
-    config = yaml.safe_load(f)
-
-client = QdrantClient(host=config['qdrant_host'], port=config['qdrant_port'])
-collection = config['collection_name']
+client = get_client()
+collection = COLLECTION
 
 count = client.count(collection_name=collection)
 print(f"Total chunks: {count.count}")
