@@ -274,8 +274,12 @@ def main():
         st.error(f"Cannot reach the vector database: {e}")
         return
     if n == 0:
-        st.warning("The index is empty. Run `python main.py --ingest` (local) or copy the index to the "
-                   "cloud collection (see docs/deploy_streamlit.md).")
+        mode = os.getenv("QDRANT_MODE", "local")
+        st.warning(f"The index is empty (QDRANT_MODE={mode}). Run `python main.py --ingest` (local) or copy the "
+                   "index to the cloud collection (see docs/deploy_streamlit.md).")
+        if mode != "cloud":
+            st.info("On Streamlit Cloud: open the app's Settings → Secrets, paste the secrets "
+                    "(including QDRANT_MODE = \"cloud\"), save, then Reboot the app.")
         return
 
     with st.sidebar:
