@@ -1,15 +1,8 @@
-from qdrant_client import QdrantClient
-import yaml
+from src.rag.vector_client import get_client, COLLECTION
 
-with open("src/config/config.yaml", "r") as f:
-    config = yaml.safe_load(f)
+client = get_client()
 
-client = QdrantClient(
-    host=config["qdrant_host"],
-    port=config["qdrant_port"]
-)
-
-collection = config["collection_name"]
+collection = COLLECTION
 
 # 1. Collection info
 info = client.get_collection(collection)
