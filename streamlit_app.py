@@ -123,7 +123,8 @@ def ask_tab():
     with agent_col:
         st.subheader("Research agent")
         try:
-            with st.spinner("Planning, researching and verifying…"):
+            with st.spinner("Planning, researching and verifying… (on a free-tier API key this "
+                            "takes a few minutes, because calls are spaced out to stay under the rate limit)"):
                 result = run_research(question.strip())
             show_agent_result(result)
         except Exception as e:
