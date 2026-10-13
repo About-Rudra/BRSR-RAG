@@ -1,5 +1,9 @@
 # Pinned to the versions this code has been run against.
 
+# CPU-only torch wheels on fresh Linux installs (e.g. Streamlit Cloud); the CUDA build is
+# several GB. Colab already ships torch, so nothing is reinstalled there.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 # Core backend
 fastapi==0.128.0
 uvicorn==0.40.0
@@ -35,6 +39,9 @@ langchain-groq==1.1.1
 
 # Research agent
 langgraph==1.0.5
+
+# Web UI (hosted on Streamlit Community Cloud)
+streamlit==1.52.2
 
 # Tests
 pytest==8.4.2

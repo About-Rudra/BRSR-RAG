@@ -17,3 +17,6 @@ vector_db/*
 .vscode/
 # Agent run logs
 runs/
+
+# Streamlit local secrets
+.streamlit/secrets.toml
