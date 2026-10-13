@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import yaml
 import warnings
-from src.queue.producer import enqueue_job
+from src.queue.producer import submit_ingest
 
 
 # Load environment variables (GOOGLE_API_KEY from .env)
@@ -26,7 +26,7 @@ session.verify = False  # Bypass SSL verification issues safely for scraping
 def download_pdf(url, save_path, category):
     """
     Downloads a PDF from URL, saves it,
-    and enqueues it for ingestion.
+    and submits it for ingestion.
     """
     try:
         response = session.get(url, timeout=30)
@@ -38,8 +38,8 @@ def download_pdf(url, save_path, category):
 
         print(f"Downloaded: {save_path}")
 
-        # ✅ ENQUEUE FOR INGESTION
-        enqueue_job(
+        # Ingest now (INGEST_MODE=sync) or enqueue for the worker (INGEST_MODE=redis)
+        submit_ingest(
             file_path=save_path,
             category=category,
             source="scraper"

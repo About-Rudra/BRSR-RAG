@@ -1,46 +1,47 @@
-import redis
-import time
-import uuid  # for unique consumer name
-from src.rag.ingestion import ingest_single_file
+import os
 
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+# "sync" (default): ingest in-process right away.
+# "redis": push a job onto the Redis stream; src/queue/worker.py consumes it.
+INGEST_MODE = os.getenv("INGEST_MODE", "sync").lower()
 
 STREAM_NAME = "ingestion_queue"
-GROUP_NAME = "workers"
-CONSUMER_NAME = f"worker_{uuid.uuid4().hex[:8]}"  # Unique per run
 
-# create group if not exists
-try:
-    r.xgroup_create(STREAM_NAME, GROUP_NAME, id="0", mkstream=True)
-except redis.exceptions.ResponseError as e:
-    if "BUSYGROUP" not in str(e):
-        raise
+_redis = None
 
-print(f"Worker started as {CONSUMER_NAME}, waiting for jobs...")
 
-while True:
-    messages = r.xreadgroup(
-        GROUP_NAME,
-        CONSUMER_NAME,
-        {STREAM_NAME: ">"},
-        count=1,
-        block=5000
-    )
+def _get_redis():
+    # Imported lazily so redis is only needed when INGEST_MODE=redis.
+    global _redis
+    if _redis is None:
+        import redis
+        _redis = redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", 6379)),
+            decode_responses=True,
+        )
+    return _redis
 
-    if not messages:
-        continue
 
-    stream, entries = messages[0]
-    for msg_id, data in entries:
-        file_path = data["file_path"]
-        category = data["category"]
+def enqueue_job(file_path, category, source):
+    """Add one ingestion job to the Redis stream."""
+    _get_redis().xadd(STREAM_NAME, {
+        "file_path": file_path,
+        "category": category,
+        "source": source,
+    })
+    print(f"Enqueued for ingestion: {file_path}")
 
-        try:
+
+def submit_ingest(file_path, category, source):
+    """Ingest a file now (sync mode) or enqueue it (redis mode).
+
+    Errors are logged, not raised, so one bad file does not stop a scrape.
+    """
+    try:
+        if INGEST_MODE == "redis":
+            enqueue_job(file_path, category, source)
+        else:
+            from src.rag.ingestion import ingest_single_file
             ingest_single_file(file_path, category)
-            r.xack(STREAM_NAME, GROUP_NAME, msg_id)
-            print(f"[{CONSUMER_NAME}] Success: {file_path}")
-        except Exception as e:
-            print(f"[{CONSUMER_NAME}] Failed: {file_path} → {e}")
-            # Optional: move to dead-letter stream
-            r.xadd("dead_letter", data)
-            r.xack(STREAM_NAME, GROUP_NAME, msg_id)
+    except Exception as e:
+        print(f"Ingestion failed for {file_path}: {e}")
