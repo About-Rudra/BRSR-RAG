@@ -41,5 +41,24 @@ Set `LLM_PROVIDER` (`gemini` default, `groq`, or `ollama`) and `LLM_MODEL`. The 
 chatbot and the agent read the same settings. Ollama is optional: `pip install langchain-ollama`,
 `ollama serve`, `ollama pull phi3:mini`.
 
-## Start backend
+## Research agent
+python main.py --ask "What must obligated entities do under CCTS, and what is BRSR Core?"
+
+A LangGraph workflow in `src/agent/`: the **Planner** splits the question into up to 4
+sub-questions tagged by regime; the **Researcher** answers each with read-only tools
+(`search_regulations`, `list_sources`, `fetch_official_page`, max 6 calls per sub-question);
+the **Verifier** checks every claim against its cited passages (first in code, then with the
+LLM) and sends rejected work back once; the **Writer** answers from verified claims only, with
+document and page citations and a "Could not verify" section. The full trace is saved to
+`runs/research_<timestamp>.json`. The single-call baseline (`src/rag/chatbot.py::chat`) is unchanged.
+
+## Web UI
+streamlit run streamlit_app.py
+
+For a public link, see [docs/deploy_streamlit.md](docs/deploy_streamlit.md).
+
+## Tests
+pytest
+
+## Start backend (baseline API)
 uvicorn src.api.main:app --reload
